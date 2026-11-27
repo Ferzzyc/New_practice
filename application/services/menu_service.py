@@ -141,3 +141,53 @@ class MenuService:
         self.connection.commit()
         cursor.close()
         return True
+
+    def get_menu_items_by_user_id(self, user_id: int) -> list:
+        cursor = self.connection.cursor(cursor=pymysql.cursors.DictCursor)
+        cursor.execute(
+            """
+            SELECT 
+                m.menu_item_id,
+                m.menu_item_name,
+                m.menu_item_link,
+                m.menu_item_order,
+                m.menu_item_parent_id,
+                m.icon_name,
+                m.menu_item_is_hidden,
+                m.menu_item_description,
+                m.menu_item_sidebar_hidden
+            FROM menu_items m
+            INNER JOIN user_menu_items umi ON m.menu_item_id = umi.menu_item_id
+            WHERE umi.user_id = %s
+            ORDER BY m.menu_item_order ASC
+            """,
+            (user_id,)
+        )
+        items = cursor.fetchall()
+        cursor.close()
+        return list(items)
+
+    def assign_menu_item_to_user(self, user_id: int, menu_item_id: int) -> bool:
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(
+                "INSERT IGNORE INTO user_menu_items (user_id, menu_item_id) VALUES (%s, %s)",
+                (user_id, menu_item_id)
+            )
+            self.connection.commit()
+            return True
+        except pymysql.MySQLError:
+            return False
+        finally:
+            cursor.close()
+
+    def remove_menu_item_from_user(self, user_id: int, menu_item_id: int) -> bool:
+        cursor = self.connection.cursor()
+        cursor.execute(
+            "DELETE FROM user_menu_items WHERE user_id = %s AND menu_item_id = %s",
+            (user_id, menu_item_id)
+        )
+        self.connection.commit()
+        deleted = cursor.rowcount > 0
+        cursor.close()
+        return deleted

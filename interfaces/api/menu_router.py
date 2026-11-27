@@ -89,3 +89,29 @@ async def delete_menu_item(
     if not deleted:
         raise HTTPException(status_code=404, detail="Menu item not found")
     return {"detail": f"Menu item {menu_item_id} successfully deleted"}
+
+@router.get("/user/{user_id}", summary="Получение пунктов меню конкретного пользователя")
+async def get_user_menu_items(user_id: int, conn: Connection = Depends(mysql_conn)):
+    service = MenuService(conn)
+    items = service.get_menu_items_by_user_id(user_id)
+    return {"user_id": user_id, "menu_items": items}
+
+
+@router.post(
+    "/user/{user_id}/assign/{menu_item_id}",
+    summary="Привязать пункт меню к пользователю (требует вход)"
+)
+async def assign_menu_to_user(
+    user_id: int,
+    menu_item_id: int,
+    conn: Connection = Depends(mysql_conn),
+    session_id: str = Depends(check_session)
+):
+    service = MenuService(conn)
+    success = service.assign_menu_item_to_user(user_id, menu_item_id)
+    if not success:
+        raise HTTPException(
+            status_code=400, 
+            detail="Не удалось привязать пункт меню (проверьте существование user_id и menu_item_id)"
+        )
+    return {"detail": f"Menu item {menu_item_id} assigned to user {user_id}"}
